@@ -1,39 +1,46 @@
 import { useState } from 'react';
 import { useAuthStore } from '../store/auth';
 import { useTaskStore } from '../store/tasks';
+import { API_BASE_URL } from '../constants';
+import { sanitizeInput } from '../utils/sanitize';
+import useApi from '../hooks/useApi';
 
 const TaskForm = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const { token } = useAuthStore();
   const { addTask } = useTaskStore();
+  const api = useApi();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    
+    const sanitizedTitle = sanitizeInput(title);
+    if (!sanitizedTitle.trim()) {
+      setError('Task title cannot be empty');
+      return;
+    }
 
     setLoading(true);
+    setError('');
+    
     try {
-      const res = await fetch('http://localhost:3001/api/tasks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ title, description, priority }),
+      const newTask = await api.post(`${API_BASE_URL}/api/tasks`, {
+        title: sanitizedTitle,
+        description: sanitizeInput(description),
+        priority,
       });
-
-      if (res.ok) {
-        const newTask = await res.json();
-        addTask(newTask);
-        setTitle('');
-        setDescription('');
-        setPriority('medium');
-      }
-    } catch (error) {
-      console.error('Failed to create task:', error);
+      
+      addTask(newTask);
+      setTitle('');
+      setDescription('');
+      setPriority('medium');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create task';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -42,6 +49,7 @@ const TaskForm = () => {
   return (
     <div className="card p-6">
       <h2 className="text-xl font-bold mb-4 text-slate-900">New Task</h2>
+      {error && <div className="bg-red-50 text-red-600 p-2 rounded mb-4 text-sm">{error}</div>}
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="text"
@@ -49,6 +57,8 @@ const TaskForm = () => {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
+          disabled={loading}
+          maxLength={100}
         />
         <textarea
           placeholder="Description (optional)"
@@ -56,8 +66,14 @@ const TaskForm = () => {
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
           className="resize-none"
+          disabled={loading}
+          maxLength={500}
         />
-        <select value={priority} onChange={(e) => setPriority(e.target.value as any)}>
+        <select 
+          value={priority} 
+          onChange={(e) => setPriority(e.target.value as any)}
+          disabled={loading}
+        >
           <option value="low">Low Priority</option>
           <option value="medium">Medium Priority</option>
           <option value="high">High Priority</option>

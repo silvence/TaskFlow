@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/auth';
+import { API_BASE_URL, ERROR_MESSAGES } from '../constants';
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -17,18 +18,30 @@ const Register = () => {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:3001/api/auth/register', {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, name, password }),
+        signal: controller.signal,
       });
 
-      if (!res.ok) throw new Error('Registration failed');
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || ERROR_MESSAGES.AUTH_FAILED);
+      }
+
       const { user, token } = await res.json();
       register(user, token);
       navigate('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      const message =
+        err instanceof Error ? err.message : ERROR_MESSAGES.NETWORK_ERROR;
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -37,8 +50,14 @@ const Register = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800">
       <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center mb-8 text-slate-900">TaskFlow</h1>
-        {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4">{error}</div>}
+        <h1 className="text-3xl font-bold text-center mb-8 text-slate-900">
+          TaskFlow
+        </h1>
+        {error && (
+          <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
+            {error}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="text"
@@ -46,6 +65,7 @@ const Register = () => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
+            disabled={loading}
           />
           <input
             type="email"
@@ -53,20 +73,30 @@ const Register = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={loading}
           />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          <div>
+            <input
+              type="password"
+              placeholder="Password (8+ chars, uppercase, number, special char)"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={loading}
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              Must include: uppercase, number, and special character (!@#$%^&*)
+            </p>
+          </div>
           <button type="submit" className="btn-primary w-full" disabled={loading}>
             {loading ? 'Registering...' : 'Register'}
           </button>
         </form>
         <p className="text-center mt-4 text-slate-600">
-          Already have an account? <Link to="/login">Login</Link>
+          Already have an account?{' '}
+          <Link to="/login" className="text-blue-600 hover:text-blue-700">
+            Login
+          </Link>
         </p>
       </div>
     </div>

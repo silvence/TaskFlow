@@ -12,13 +12,19 @@ const priorityColors = {
 };
 
 const TaskCard = ({ task }: { task: Task }) => {
-  const daysLeft = task.dueDate ? Math.ceil((new Date(task.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+  let daysLeft: number | null = null;
+  if (task.dueDate) {
+    const timeDiff = new Date(task.dueDate).getTime() - Date.now();
+    if (!isNaN(timeDiff)) {
+      daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+    }
+  }
 
   return (
     <div className="bg-slate-50 rounded-lg p-3 border border-slate-200 hover:border-blue-300 transition-colors">
       <h3 className="font-medium text-slate-900 mb-2">{task.title}</h3>
       <div className="flex items-center gap-2">
-        <span className={`text-xs font-semibold px-2 py-1 rounded ${priorityColors[task.priority]}`}>
+        <span className={`text-xs font-semibold px-2 py-1 rounded ${priorityColors[task.priority] || priorityColors.medium}`}>
           {task.priority}
         </span>
         {daysLeft !== null && (

@@ -1,1 +1,17 @@
-export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';\nexport const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';\n\nexport const TASK_PRIORITIES = ['low', 'medium', 'high'] as const;\nexport const TASK_STATUSES = ['todo', 'in-progress', 'done'] as const;\n\nexport const ERROR_MESSAGES = {\n  AUTH_FAILED: 'Authentication failed. Please try again.',\n  NETWORK_ERROR: 'Network error. Please check your connection.',\n  INVALID_INPUT: 'Invalid input. Please check your data.',\n};\n\nexport const SUCCESS_MESSAGES = {\n  TASK_CREATED: 'Task created successfully!',\n  TASK_UPDATED: 'Task updated successfully!',\n  TASK_DELETED: 'Task deleted successfully!',\n};\n
+export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+export const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
+
+export const TASK_PRIORITIES = ['low', 'medium', 'high'] as const;
+export const TASK_STATUSES = ['todo', 'in-progress', 'done'] as const;
+
+export const ERROR_MESSAGES = {
+  AUTH_FAILED: 'Authentication failed. Please try again.',
+  NETWORK_ERROR: 'Network error. Please check your connection.',
+  INVALID_INPUT: 'Invalid input. Please check your data.',
+};
+
+export const SUCCESS_MESSAGES = {
+  TASK_CREATED: 'Task created successfully!',
+  TASK_UPDATED: 'Task updated successfully!',
+  TASK_DELETED: 'Task deleted successfully!',
+};

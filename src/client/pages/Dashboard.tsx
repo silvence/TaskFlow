@@ -6,7 +6,6 @@ import { API_BASE_URL, SOCKET_URL } from '../constants';
 import TaskList from '../components/TaskList';
 import TaskForm from '../components/TaskForm';
 import Header from '../components/Header';
-import useSocket from '../hooks/useSocket';
 
 const Dashboard = () => {
   const { user, logout, token } = useAuthStore();
@@ -14,7 +13,7 @@ const Dashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const { data: tasksData, isError, isLoading: queryLoading } = useQuery(
+  const { data: tasksData, isError } = useQuery(
     'tasks',
     async () => {
       setIsLoading(true);

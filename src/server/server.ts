@@ -14,19 +14,14 @@ import { errorHandler, authenticate } from './middleware/auth';
 const app = express();
 const server = http.createServer(app);
 
-// Validate required environment variables
-const requiredEnvVars = ['JWT_SECRET', 'MONGODB_URI'];
-const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
-
-if (missingEnvVars.length > 0) {
-  console.error(`❌ Missing required environment variables: ${missingEnvVars.join(', ')}`);
-  console.error('📋 Please copy .env.example to .env and configure all variables');
-  process.exit(1);
+// Validate required env vars
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
 }
 
 const io = new SocketIOServer(server, {
   cors: {
-    origin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(','),
+    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -37,61 +32,73 @@ const corsOptions = {
   origin: (process.env.CORS_ORIGIN || 'http://localhost:5173').split(','),
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-  optionsSuccessStatus: 200,
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
+app.use(cors(corsOptions));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
+// Rate limiting middleware
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 requests per windowMs
+  message: 'Too many authentication attempts, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
-app.use(cors(corsOptions));
-app.use(limiter);
-app.use(express.json());
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+});
+
+// Middleware
+app.use(express.json({ limit: '10kb' })); // Limit payload size
+app.use(generalLimiter);
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/tasks', taskRoutes);
-app.use('/api/projects', projectRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/tasks', authenticate, taskRoutes);
+app.use('/api/projects', authenticate, projectRoutes);
 
-// Socket.IO middleware for authentication
+// WebSocket authentication middleware
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
-  if (!token) return next(new Error('Authentication failed'));
+
+  if (!token) {
+    return next(new Error('Authentication required'));
+  }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!);
-    (socket as any).userId = (decoded as any).id;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+    socket.data.userId = decoded.userId;
     next();
-  } catch (err) {
+  } catch (error) {
     next(new Error('Invalid token'));
   }
 });
 
-// Socket.IO connection handling
+// WebSocket events for real-time collaboration
 io.on('connection', (socket) => {
-  const userId = (socket as any).userId;
-  console.log(`✓ User ${userId} connected:`, socket.id);
+  const userId = socket.data.userId;
+  console.log(`User ${userId} connected:`, socket.id);
+  socket.join(`user-${userId}`); // Join user-specific room
 
-  socket.on('task:create', (data: any) => {
-    io.emit('task:created', data);
+  socket.on('task:update', (data) => {
+    // Only broadcast to the same user (could expand to team members)
+    io.to(`user-${userId}`).emit('task:updated', data);
   });
 
-  socket.on('task:update', (data: any) => {
-    io.emit('task:updated', data);
+  socket.on('task:create', (data) => {
+    // Only send to the user who created it
+    io.to(`user-${userId}`).emit('task:created', data);
   });
 
-  socket.on('task:delete', (taskId: string) => {
-    io.emit('task:deleted', taskId);
+  socket.on('error', (error) => {
+    console.error('Socket error:', error);
   });
 
   socket.on('disconnect', () => {
     console.log(`User ${userId} disconnected:`, socket.id);
-  });
-
-  socket.on('error', (error: any) => {
-    console.error(`Socket error for user ${userId}:`, error);
   });
 });
 
@@ -116,7 +123,6 @@ const start = async () => {
     server.listen(PORT, () => {
       console.log(`✓ Server running on http://localhost:${PORT}`);
       console.log(`✓ WebSocket listening for authenticated connections`);
-      console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

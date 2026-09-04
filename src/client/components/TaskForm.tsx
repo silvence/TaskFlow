@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuthStore } from '../store/auth';
 import { useTaskStore } from '../store/tasks';
+import { API_BASE_URL } from '../constants';
 
 const TaskForm = () => {
   const [title, setTitle] = useState('');
@@ -16,7 +17,7 @@ const TaskForm = () => {
 
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/tasks', {
+      const res = await fetch(`${API_BASE_URL}/api/tasks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -14,6 +14,7 @@ interface TaskListProps {
 
 const TaskList = ({ tasks }: TaskListProps) => {
   const columns: Array<'todo' | 'in-progress' | 'done'> = ['todo', 'in-progress', 'done'];
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -23,7 +24,7 @@ const TaskList = ({ tasks }: TaskListProps) => {
             {status.replace('-', ' ')}
           </h2>
           <div className="space-y-3">
-            {tasks
+            {safeTasks
               .filter((t) => t.status === status)
               .map((task) => (
                 <TaskCard key={task._id} task={task} />

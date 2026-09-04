@@ -33,6 +33,9 @@ router.post('/register', async (req: Request, res: Response) => {
 
     res.status(201).json({ user: { id: user._id, email, name }, token });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Validation failed', details: error.errors });
+    }
     res.status(400).json({ error: 'Registration failed' });
   }
 });
@@ -51,6 +54,9 @@ router.post('/login', async (req: Request, res: Response) => {
 
     res.json({ user: { id: user._id, email: user.email, name: user.name }, token });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Validation failed', details: error.errors });
+    }
     res.status(400).json({ error: 'Login failed' });
   }
 });

@@ -12,6 +12,12 @@ const CreateProjectSchema = z.object({
   color: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
 });
 
+const UpdateProjectSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().optional(),
+  color: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+});
+
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const projects = await Project.find({
@@ -40,14 +46,18 @@ router.post('/', async (req: AuthRequest, res) => {
 
 router.patch('/:id', async (req: AuthRequest, res) => {
   try {
+    const data = UpdateProjectSchema.parse(req.body);
     const project = await Project.findOneAndUpdate(
       { _id: req.params.id, owner: req.userId },
-      req.body,
-      { new: true }
+      { $set: data },
+      { new: true, runValidators: true }
     );
     if (!project) return res.status(403).json({ error: 'Unauthorized' });
     res.json(project);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.errors });
+    }
     res.status(400).json({ error: 'Failed to update project' });
   }
 });
